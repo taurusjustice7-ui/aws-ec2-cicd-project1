@@ -40,7 +40,7 @@ jobs:
             if pm2 describe my-node-app > /dev/null 2>&1; then
               APP_ENV=PROD pm2 restart my-node-app --update-env
             else
-              APP_ENV=PROD pm2 start app.js --name my-node-app --update-env
+              APP_ENV=PROD pm2 start app.js --name my-repo-project2 --update-env
             fi
 
             pm2 save
