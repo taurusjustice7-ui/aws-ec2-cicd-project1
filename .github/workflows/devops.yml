@@ -1,56 +1,47 @@
-name: Node.js Multi Environment Deployment
+name: Deploy Application
 
 on:
   push:
     branches:
-      - dev
-      - qa
       - main
 
 jobs:
+  deploy-main:
+    runs-on: ubuntu-latest
 
-  # =========================
-  # DEV DEPLOYMENT
-  # =========================
-deploy-dev:
-  if: github.ref == 'refs/heads/dev'
-  runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-  steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Deploy to Main Server
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: 13.232.203.181
+          username: ec2-user
+          key: ${{ secrets.DEV_EC2_SSH_KEY }}
+          script: |
+            set -e
 
-    - name: Deploy to DEV
-      uses: appleboy/ssh-action@v1.2.0
-      with:
-        host: ${{ secrets.DEV_EC2_HOST }}
-        username: ec2-user
-        key: ${{ secrets.DEV_EC2_SSH_KEY }}
+            echo "Deploying application from main branch..."
+            cd /home/ec2-user/my-repo-project2/aws-ec2-cicd-project1
 
-        script: |
-          set -e
+            git fetch origin main
+            git reset --hard origin/main
+            git clean -fd
 
-          echo "Deploying to DEV..."
-          cd /home/ec2-user/my-repo-project2/aws-ec2-cicd-project1
+            echo "2. Checking deployed commit..."
+            git rev-parse HEAD
+            git log -1 --oneline
 
-          git fetch origin dev
-          git reset --hard origin/dev
-          git clean -fd
+            echo "3. Installing dependencies..."
+            npm install
 
-          echo "2. Checking deployed commit..."
-          git rev-parse HEAD
-          git log -1 --oneline
+            echo "4. Restarting PM2 application..."
+            if pm2 describe my-node-app > /dev/null 2>&1; then
+              APP_ENV=PROD pm2 restart my-node-app --update-env
+            else
+              APP_ENV=PROD pm2 start app.js --name my-node-app --update-env
+            fi
 
-          echo "3. Installing dependencies..."
-          npm install
-
-          echo "4. Restarting PM2 application..."
-          if pm2 describe my-node-app > /dev/null 2>&1; then
-            APP_ENV=DEV pm2 restart my-node-app --update-env
-          else
-            APP_ENV=DEV pm2 start app.js --name my-node-app --update-env
-          fi
-
-          pm2 save
-
-          echo "DEV deployment successful!"
+            pm2 save
+            echo "Main deployment successful!"
